@@ -20,7 +20,7 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
@@ -48,7 +48,21 @@ def parse_mnist(image_filename, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR CODE
-    pass
+    with gzip.open(image_filename, "rb") as img_file:
+        magic_num, img_num, row, col = struct.unpack(">4i", img_file.read(16))
+        assert(magic_num == 2051)
+        tot_pixels = row * col
+        X = np.vstack([np.array(struct.unpack(f"{tot_pixels}B", img_file.read(tot_pixels)), dtype=np.float32) for _ in range(img_num)])
+        X -= np.min(X)
+        X /= np.max(X)
+
+    with gzip.open(label_filename, "rb") as label_file:
+        magic_num, label_num = struct.unpack(">2i", label_file.read(8))
+        assert(magic_num == 2049)
+        y = np.array(struct.unpack(f"{label_num}B", label_file.read()), dtype=np.uint8)
+
+    return X, y
+        
     ### END YOUR CODE
 
 
@@ -68,12 +82,12 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    return (np.sum(np.log(np.sum(np.exp(Z), axis=1))) - np.sum(Z[np.arange(y.size), y])) / y.size
     ### END YOUR CODE
 
 
 def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
-    """ Run a single epoch of SGD for softmax regression on the data, using
+    """ Run a sinsoftmax_regression_epochgle epoch of SGD for softmax regression on the data, using
     the step size lr and specified batch size.  This function should modify the
     theta matrix in place, and you should iterate through batches in X _without_
     randomizing the order.
@@ -91,7 +105,21 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_iterations = (X.shape[0] + batch - 1) // batch
+    for i in range(num_iterations):
+        # get the subset of X and y
+        data = X[i * batch : (i+1) * batch, :]
+        labels = y[i * batch : (i+1) * batch]
+        
+        Z = np.exp(data @ theta)
+        Z = Z / np.sum(Z, axis=1, keepdims=True)
+        
+        Iy = np.zeros(Z.shape)
+        Iy[np.arange(batch), labels] = 1
+        
+        delta_theta = data.T @ (Z - Iy) / batch
+        
+        theta -= lr * delta_theta
     ### END YOUR CODE
 
 
@@ -118,7 +146,31 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_iterations = (X.shape[0] + batch - 1) // batch
+    for i in range(num_iterations):
+        # get the subset of X and y
+        data = X[i * batch : (i+1) * batch, :]
+        labels = y[i * batch : (i+1) * batch]
+        
+        Z1 = data @ W1
+        Z1[Z1 < 0] = 0
+        
+        G2 = np.exp(Z1 @ W2) 
+        G2 = G2 / np.sum(G2, axis=1, keepdims=True)
+        Iy = np.zeros(G2.shape)
+        Iy[np.arange(batch), labels] = 1
+        G2 = G2 - Iy
+        
+        
+        G1 = np.zeros(Z1.shape)
+        G1[Z1 > 0] = 1
+        G1 = G1 * (G2 @ W2.T)
+        
+        delta_W1 = data.T @ G1 / batch
+        delta_W2 = Z1.T @ G2 / batch
+        
+        W1 -= lr * delta_W1
+        W2 -= lr * delta_W2
     ### END YOUR CODE
 
 
